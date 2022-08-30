@@ -1,0 +1,145 @@
+<!-- help with code from youtube video https://www.youtube.com/watch?v=zQDzNNt6xd4 -->
+
+<!DOCTYPE html>
+  <html lang="en">
+  <head>
+        <title>ChatApp</title>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/3.0.4/socket.io.js" integrity="sha512-aMGMvNYu8Ue4G+fHa359jcPb1u+ytAF+P2SCb+PxrjCdO3n3ZTxJ30zuH39rimUggmTwmh2u7wvQsDTHESnmfQ==" crossorigin="anonymous"></script>
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js" integrity="sha384-B4gt1jrGC7Jh4AgTPSdUtOBvfO8shuf57BaghqFfPlYxofvL8/KUEfYiJOMMV+rV" crossorigin="anonymous"></script>
+        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js" integrity="sha384-LtrjvnR4Twt/qOuYxE721u19sVFLVSA4hf/rRt6PrZTmiPltdZcI7q7PXQBYTKyf" crossorigin="anonymous"></script>
+        <script src="https://kit.fontawesome.com/4fc2fac78c.js" crossorigin="anonymous" defer></script>
+  </head>
+  <body>
+
+    <nav class="navbar navbar-light bg-light"> <!-- header for the app where user enters their username -->
+        <a class="navbar-brand">ChatRoom</a>
+        
+        <form class="form-inline" id="create-username-area">
+            <div class="input-group">
+                <div class="input-group-prepend">
+                    <span class="input-group-text" id="basic-addon1">@</span>
+                </div>
+                <input class="form-control mr-sm-2" id="username" type="text" placeholder="Enter Username"> <!-- input box for the username -->
+                <button class="btn btn-outline-success my-2 my-sm-0" type="button" id="enter-username">Enter</button> <!-- click once username entered -->
+            </div>
+        </form>
+    </nav>
+
+    
+
+      <div class="container-fluid">
+        <div class="row flex-nowrap">
+            <div class="col-auto col-md-3 col-xl-2 px-sm-2 px-0 bg-dark"> <!-- create sidebar to show all the rooms and to create new rooms -->
+                <div class="d-flex flex-column align-items-center align-items-sm-start px-3 pt-2 text-white min-vh-100">
+                    <h3>Rooms</h3>
+                    <ul class="nav nav-pills flex-column mb-sm-auto mb-0 align-items-center align-items-sm-start" id="menu">
+                        {% for room in rooms %} <!-- loop through all the rooms and print them out -->
+                            <li class="nav-item">
+                                <div class="nav-link align-middle px-0">
+                                    <span class="select-room ms-1 d-none d-sm-inline">{{ room }}</span>
+                                </div>
+                            </li>
+                        {% endfor %} <!-- end the loop -->
+                        <br><br><br><br>
+                        
+                        <form> <!-- form for creating a new room -->
+                            <div class="mb-3">
+                                <label for="newroom" class="form-label">Create new room</label>
+                                <input type="text" class="form-control" id="newroom" placeholder="Enter new room name">
+                            </div>
+                            <div class="d-grid gap-2"> 
+                                <button type="button" class="btn btn-outline-success my-2 my-sm-0" id="enter-newroom">Enter</button> <!-- button to submit the room -->
+                            </div>
+                        </form>
+                        
+                    </ul>
+                </div>
+            </div>
+            <div class="col py-3">
+                <div id="display-message" style="border-radius: 12px; 
+                background-color: rgb(245, 244, 244);
+                height: 500px;
+                padding: 20px;
+                margin: 20px;"> <!-- box that will show all the messages sent and when new users join a room -->
+
+                </div>
+
+                <form class="mb-3" id="input-area" style="margin: 20px;"> <!-- form for sending a message -->
+                    <div class="input-group">
+                        <input class="form-control mr-sm-2" id="message" type="text" placeholder="Type message here">
+                        <button class="btn btn-outline-success my-2 my-sm-0" type="button" id="send_message">Enter</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+
+    <script type="text/javascript">
+        var socket = io.connect('http://127.0.0.1:5000'); // create the socket
+        
+        let room; // create variable for the room
+
+        let enterusername = document.getElementById("enter-username"); // get the username from its input box
+        enterusername.addEventListener("click", (event)=>{
+            event.preventDefault();
+            window.uname = document.getElementById('username').value; // create a global variable to store the username
+        });
+
+        let enterroom = document.getElementById("enter-newroom"); // get the name of the new room from its input box
+        enterroom.addEventListener("click", (event)=>{
+            event.preventDefault();
+            let newroo = document.getElementById('newroom').value; // create a variable for the new room
+            socket.emit('newroom', {'new': newroo}); // emit the new room name to the newroom event
+        });
+
+        socket.on('message', data => { // when a user wants to send a message
+            let txt = document.createElement('p'); // create a paragraph tag to store the message
+            let br = document.createElement('br');
+
+            if (data.username) { // if the user is logged in
+                txt.innerHTML = data.username + ": " + data.msg; // show the message and who sent it
+                document.getElementById('display-message').append(txt); // append the message to the message box
+                
+            } else {
+                printSysMsg(data.msg);
+            }
+        });
+
+        let sendmessage = document.getElementById("send_message"); // button clicked to send a message to room
+        sendmessage.addEventListener("click", (event)=>{ // when clicked
+            event.preventDefault();
+            socket.send({'username' : uname, 'msg' : document.getElementById('message').value,
+            'room' : room}); // send the username, text message and room to the message event
+        });
+
+        document.querySelectorAll('.select-room').forEach(p => { // for changing rooms
+        p.onclick = () => { // if you click on a new room
+            let newRoom = p.innerHTML
+            // Check if user already in the room
+            if (newRoom === room) {
+                msg = `You are already in ${room} room.`;
+                printSysMsg(msg);
+            } else { // steps to leave current room and join new room
+                socket.emit('leave', {'username': uname, 'room' : room}); // emit the username and room you want to leave to the leave event 
+
+                socket.emit('join', {'username': uname, 'room' : newRoom}); // emit the username and room you want to join to the join event
+                document.getElementById('display-message').innerHTML = '' // reset the chatbox in the new room to be empty
+
+                room = newRoom; // move rooms
+            }
+            };
+        });
+
+        function printSysMsg(msg) { // function to display a message
+            const p = document.createElement('p'); // create a paragraph tag
+            p.innerHTML = msg; // add the message to the tag
+            document.getElementById('display-message').append(p); // append the paragraph tag to the chat box
+
+        }
+    </script>
+
+</body>
+</html>
